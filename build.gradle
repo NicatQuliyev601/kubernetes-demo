@@ -1,0 +1,48 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerPushImage
+
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.1.1'
+    id 'io.spring.dependency-management' version '1.1.0'
+    id 'com.bmuschko.docker-remote-api' version "$dockerVersion"
+}
+
+group = 'az.ingress'
+def hash = 'git rev-parse --short HEAD'.execute().text.trim()
+version = "$projectVersion.$hash"
+
+java {
+    sourceCompatibility = '17'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+task dockerBuild(type: DockerBuildImage) {
+    inputDir.set(file("$projectDir/."))
+    doLast {
+        println("creating image: $dockerRepoUrl/${project.name}:$version")
+    }
+    images.add("$dockerRepoUrl/${project.name}:$version")
+    images.add("$dockerRepoUrl/${project.name}")
+}
+
+task dockerPush(type: DockerPushImage, dependsOn: dockerBuild) {
+    images.add("$dockerRepoUrl/${project.name}:$version")
+    images.add("$dockerRepoUrl/${project.name}")
+
+    registryCredentials.setUsername("$dockerHubUsername")
+    registryCredentials.setPassword("$dockerHubPassword")
+    registryCredentials.setEmail("$dockerHubEmail")
+}
